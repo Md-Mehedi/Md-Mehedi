@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kadane's Algorithm: Interactive Problem Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <script type="text/javascript" async
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML">
+    </script>
+    <script type="text/x-mathjax-config">
+        MathJax.Hub.Config({
+            tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+        });
+    </script>
+    <!-- Chosen Palette: Brilliant Blues -->
+    <!-- Application Structure Plan: The application is structured as a single-page narrative. It begins with an introduction to Kadane's algorithm, including its definition, use cases, and efficiency. This is followed by an interactive visualization of the algorithm's core logic. The primary interactive section is a grid of "problem cards" that represent various LeetCode-style problems solvable with Kadane's. Clicking a card triggers a modal popup displaying the full problem statement, examples, and a conceptual solution explanation. This structure is chosen to progressively educate the user, from theoretical understanding to practical application, fostering engagement through interactive exploration of related problems. -->
+    <!-- Visualization & Content Choices: Main explanation (Inform) -> Styled text blocks; Complexity (Inform) -> "Big Number" styled text; Algorithm Flow (Organize) -> HTML/CSS structured steps; Walkthrough (Change) -> Chart.js Line Chart (Canvas) showing `current_sum` and `largest_sum` evolution (interactive on hover for data points); Problem Cards (Organize/Compare) -> HTML/CSS cards with clickable functionality; Problem Modal (Inform/Explore) -> HTML/CSS modal with dynamic content injection for problem details. All choices adhere to the NO SVG/Mermaid constraint. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F2F2F2; /* Light Background */
+            color: #333333; /* Text */
+        }
+        .container-fluid {
+            max-width: 1200px;
+        }
+        .card {
+            background-color: #FFFFFF; /* Card Background */
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .code-block {
+            background-color: #1e293b; /* Dark background for code */
+            color: #cbd5e1; /* Light text for code */
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            white-space: pre-wrap;
+            line-height: 1.75;
+        }
+        .flow-step {
+            position: relative;
+            padding-bottom: 3rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .flow-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 100%;
+            bottom: -2rem;
+            width: 2px;
+            background-color: #00A1E4; /* Secondary Blue for flow line */
+            transform: translateX(-50%);
+            z-index: 1;
+        }
+        .flow-icon {
+            background-color: #00A1E4; /* Secondary Blue */
+            color: white;
+            width: 3rem;
+            height: 3rem;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.25rem;
+            z-index: 2;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6);
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            width: 90%;
+            max-width: 800px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .close-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            color: #aaa;
+            font-size: 1.75rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .close-button:hover, .close-button:focus {
+            color: #333;
+            text-decoration: none;
+        }
+        .leetcode-link {
+            display: inline-block;
+            background-color: #EBF8FF; /* Very light blue for link background */
+            color: #00A1E4; /* Secondary Blue for link text */
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            margin-top: 1rem;
+            transition: background-color 0.2s, color 0.2s;
+            text-decoration: none;
+        }
+        .leetcode-link:hover {
+            background-color: #0077C2; /* Primary Blue on hover */
+            color: white;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container-fluid mx-auto px-4 py-12 md:py-16">
+
+        <header class="text-center mb-16">
+            <h1 class="text-4xl md:text-6xl font-black text-gray-800 mb-4">Mastering Kadane's Algorithm</h1>
+            <p class="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">Explore the elegance, applications, and core principles of one of dynamic programming's most celebrated solutions.</p>
+        </header>
+
+        <main class="space-y-20">
+
+            <!-- Introduction Section -->
+            <section id="introduction">
+                <div class="card">
+                    <h2 class="text-3xl font-bold mb-4 text-center" style="color: #0077C2;">What is Kadane's Algorithm?</h2>
+                    <p class="mb-4 text-lg text-gray-600">Kadane's Algorithm is a dynamic programming approach designed to find the maximum sum of a contiguous subarray within a one-dimensional array of numbers. Its linear time complexity and constant space complexity make it exceptionally efficient.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+                        <div>
+                            <h3 class="text-2xl font-bold mb-2" style="color: #00A1E4;">When to Use?</h3>
+                            <p class="text-gray-600">This algorithm is specifically tailored for problems requiring the largest possible sum from a sequence of adjacent numbers in an array, particularly effective when the array contains both positive and negative values.</p>
+                        </div>
+                        <div>
+                            <h3 class="text-2xl font-bold mb-2" style="color: #00A1E4;">Why it Works?</h3>
+                            <p class="text-gray-600">Kadane's algorithm leverages two core dynamic programming principles: <strong>optimal substructure</strong> (solutions to subproblems build the global solution) and <strong>greedy choice</strong> (making the locally optimal decision at each step, ensuring the $current\_sum$ never becomes a "burden" on future sums by restarting if it drops below zero).</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Algorithm Flow Section -->
+            <section id="algorithm-flow">
+                 <div class="card">
+                    <h2 class="text-3xl font-bold mb-8 text-center" style="color: #0077C2;">The Core Approach</h2>
+                    <p class="text-center text-lg text-gray-600 mb-8 max-w-3xl mx-auto">The algorithm processes the array in a single pass, maintaining two key variables: the maximum sum ending at the current position and the overall maximum sum found so far.</p>
+                    <div class="max-w-xl mx-auto">
+                        <div class="flow-step">
+                            <div class="flow-icon">1</div>
+                            <h3 class="font-bold text-xl mt-4">Initialization</h3>
+                            <p class="text-gray-600 text-center">Set $current\_sum$ and $largest\_sum$ to the value of the first array element (or negative infinity for $largest\_sum$).</p>
+                        </div>
+                        <div class="flow-step">
+                           <div class="flow-icon">2</div>
+                            <h3 class="font-bold text-xl mt-4">Iterative Update</h3>
+                            <p class="text-gray-600 text-center">For each subsequent element, update $current\_sum = \text{max}(\text{element}, current\_sum + \text{element})$. This decides whether to extend the current subarray or start a new one.</p>
+                        </div>
+                        <div class="flow-step">
+                           <div class="flow-icon">3</div>
+                            <h3 class="font-bold text-xl mt-4">Global Maximum</h3>
+                            <p class="text-gray-600 text-center">After updating $current\_sum$, update $largest\_sum = \text{max}(largest\_sum, current\_sum)$ to keep track of the overall best.</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+                        <div class="text-center">
+                            <h3 class="text-2xl font-bold mb-2">Time Complexity</h3>
+                            <p class="text-5xl font-black" style="color: #0077C2;">O(N)</p>
+                            <p class="text-gray-600">Single pass through the array.</p>
+                        </div>
+                        <div class="text-center">
+                            <h3 class="text-2xl font-bold mb-2">Space Complexity</h3>
+                            <p class="text-5xl font-black" style="color: #0077C2;">O(1)</p>
+                            <p class="text-gray-600">Only a few variables needed.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Interactive Walkthrough Chart -->
+            <section id="walkthrough">
+                <div class="card">
+                    <h2 class="text-3xl font-bold mb-4 text-center" style="color: #0077C2;">Interactive Walkthrough: `[-2, 1, -3, 4, -1, 2, 1, -5, 4]`</h2>
+                    <p class="text-center text-lg text-gray-600 mb-8 max-w-3xl mx-auto">Observe how $current\_sum$ (green) dynamically adjusts, while $largest\_sum$ (primary blue) steadily records the highest value achieved. Hover over data points for details.</p>
+                    <div class="chart-container">
+                        <canvas id="walkthroughChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Problems Section -->
+            <section id="problems">
+                <h2 class="text-3xl font-bold mb-8 text-center" style="color: #0077C2;">Problems Solvable with Kadane's</h2>
+                <p class="text-center text-lg text-gray-600 mb-12 max-w-3xl mx-auto">Discover various challenges where Kadane's Algorithm, or its modified forms, provides an optimal solution. Click on each card to reveal the full problem details and how Kadane's applies.</p>
+                <div id="problem-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <!-- Problem cards will be injected here by JavaScript -->
+                </div>
+            </section>
+        </main>
+
+        <footer class="text-center mt-20 border-t pt-8 border-gray-200">
+            <p class="text-gray-600">Crafted with insights from various algorithm resources.</p>
+        </footer>
+    </div>
+
+    <!-- The Modal Structure -->
+    <div id="problem-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" style="color: #0077C2;">&times;</span>
+            <h3 id="modal-title" class="text-2xl font-bold mb-4" style="color: #0077C2;"></h3>
+            <p id="modal-statement" class="text-gray-700 mb-4"></p>
+            <div class="mb-4">
+                <p class="font-semibold mb-2 text-gray-700">Example:</p>
+                <div id="modal-example" class="code-block text-sm"></div>
+            </div>
+            <div class="mb-4">
+                <p class="font-semibold mb-2 text-gray-700">Solution Insight (Kadane's Connection):</p>
+                <p id="modal-solution" class="text-gray-700"></p>
+            </div>
+            <a id="modal-leetcode-link" href="#" target="_blank" class="leetcode-link">View on LeetCode</a>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Chart.js Walkthrough Data
+            const walkthroughChartData = {
+                labels: ['Initial', 'Element: -2', 'Element: 1', 'Element: -3', 'Element: 4', 'Element: -1', 'Element: 2', 'Element: 1', 'Element: -5', 'Element: 4'],
+                currentSumValues: [0, -2, 1, -2, 4, 3, 5, 6, 1, 5],
+                largestSumValues: [-Infinity, -2, 1, 1, 4, 4, 5, 6, 6, 6]
+            };
+
+            const processLabelForChart = (label) => {
+                const words = label.split(' ');
+                let currentLine = '';
+                const lines = [];
+                const maxCharPerLine = 16;
+
+                for (const word of words) {
+                    if ((currentLine + word).length <= maxCharPerLine) {
+                        currentLine += (currentLine ? ' ' : '') + word;
+                    } else {
+                        lines.push(currentLine);
+                        currentLine = word;
+                    }
+                }
+                if (currentLine) {
+                    lines.push(currentLine);
+                }
+                return lines;
+            };
+
+            const wrappedLabels = walkthroughChartData.labels.map(label => {
+                if (label.length > 16) {
+                    return processLabelForChart(label);
+                }
+                return label;
+            });
+
+            const ctx = document.getElementById('walkthroughChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: wrappedLabels,
+                    datasets: [
+                        {
+                            label: 'current_sum',
+                            data: walkthroughChartData.currentSumValues,
+                            borderColor: '#50E3C2', /* Accent Green */
+                            backgroundColor: 'rgba(80, 227, 194, 0.2)',
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: '#50E3C2',
+                            pointHoverRadius: 7,
+                            pointHoverBackgroundColor: '#ffffff',
+                            pointHoverBorderColor: '#50E3C2',
+                            pointHoverBorderWidth: 3
+                        },
+                        {
+                            label: 'largest_sum',
+                            data: walkthroughChartData.largestSumValues,
+                            borderColor: '#0077C2', /* Primary Blue */
+                            backgroundColor: 'rgba(0, 119, 194, 0.2)',
+                            fill: false,
+                            tension: 0.4,
+                            pointBackgroundColor: '#0077C2',
+                            pointHoverRadius: 7,
+                            pointHoverBackgroundColor: '#ffffff',
+                            pointHoverBorderColor: '#0077C2',
+                            pointHoverBorderWidth: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            grid: {
+                                color: '#e5e7eb'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        },
+                        tooltip: {
+                            enabled: true,
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: '#333333', /* Dark text color for tooltip background */
+                            titleFont: { size: 14, weight: 'bold' },
+                            bodyFont: { size: 12 },
+                            padding: 12,
+                            cornerRadius: 4,
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    const item = tooltipItems[0];
+                                    let label = item.chart.data.labels[item.dataIndex];
+                                    if (Array.isArray(label)) {
+                                      return label.join(' ');
+                                    } else {
+                                      return label;
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                }
+            });
+
+            // Problem Data for Cards and Modal
+            const problems = [
+                {
+                    id: 'max-subarray',
+                    title: 'Maximum Subarray',
+                    shortDescription: 'Finds the largest sum of a contiguous subarray.',
+                    fullStatement: 'Given an integer array `nums`, find the contiguous subarray (containing at least one number) which has the largest sum and return its sum.',
+                    example: `Input: nums = [-2,1,-3,4,-1,2,1,-5,4]\nOutput: 6\nExplanation: [4,-1,2,1] has the largest sum = 6.`,
+                    solutionExplanation: 'This is the direct application of Kadane\'s algorithm. Iterate through the array, maintaining $current\_max$ (maximum sum ending at the current position) and $global\_max$ (overall maximum sum). Update $current\_max = \\text{max}(num, current\_max + num)$ and then $global\_max = \\text{max}(global\_max, current\_max)$.',
+                    leetcodeLink: 'https://leetcode.com/problems/maximum-subarray/'
+                },
+                {
+                    id: 'best-time-to-buy-sell-stock',
+                    title: 'Best Time to Buy and Sell Stock',
+                    shortDescription: 'Maximize profit by buying and selling a stock once.',
+                    fullStatement: 'You are given an array `prices` where $prices[i]$ is the price of a given stock on the $i^{th}$ day. You want to maximize your profit by choosing a single day to buy one stock and choosing a different day in the future to sell that stock. Return the maximum profit you can achieve from this transaction. If you cannot achieve any profit, return 0.',
+                    example: `Input: prices = [7, 1, 5, 3, 6, 4]\nOutput: 5\nExplanation: Buy on day 2 (price = 1) and sell on day 5 (price = 6), profit = 6 - 1 = 5.`,
+                    solutionExplanation: 'This problem can be transformed into a maximum subarray problem. Create an array of daily price differences ($diff[i] = prices[i] - prices[i-1]$). The problem then reduces to finding the maximum sum of a contiguous subarray in this $diff$ array using Kadane\'s.',
+                    leetcodeLink: 'https://leetcode.com/problems/best-time-to-buy-and-sell-stock/'
+                },
+                {
+                    id: 'maximum-sum-circular-subarray',
+                    title: 'Maximum Sum Circular Subarray',
+                    shortDescription: 'Finds the max sum in a circular array.',
+                    fullStatement: 'Given a circular integer array `nums` of length `n`, return the maximum possible sum of a non-empty subarray of `nums`. A circular array means the end of the array connects to the beginning of the array. Formally, $nums[i+n] = nums[i]$ for any $i \\ge 0$.',
+                    example: `Input: nums = [5, -3, 5]\nOutput: 10\nExplanation: The subarray [5, 5] (wrapping around) has maximum sum 10.`,
+                    solutionExplanation: 'This problem has two main cases: 1) The maximum subarray is non-circular (standard Kadane\'s application). 2) The maximum subarray is circular, wrapping around the ends. The sum of a circular subarray can be found by $total\\_sum\\_of\\_array - minimum\\_subarray\\_sum$. You apply Kadane\'s algorithm twice (once for the maximum sum, once for the minimum sum) and then compare the two results. An edge case to consider is when all numbers in the array are negative.',
+                    leetcodeLink: 'https://leetcode.com/problems/maximum-sum-circular-subarray/'
+                },
+                {
+                    id: 'maximum-product-subarray',
+                    title: 'Maximum Product Subarray',
+                    shortDescription: 'Finds the largest product of a contiguous subarray.',
+                    fullStatement: 'Given an integer array `nums`, find a contiguous non-empty subarray that has the largest product, and return the product. The test cases are generated so that the answer will fit in a 32-bit integer.',
+                    example: `Input: nums = [2, 3, -2, 4]\nOutput: 6\nExplanation: The subarray [2, 3] has the largest product 6.`,
+                    solutionExplanation: 'This is a variation of Kadane\'s Algorithm. Unlike sums, products can flip their sign when multiplied by a negative number. Therefore, to solve this, you need to track both the maximum positive product and the minimum negative product ending at the current position. At each step, update these two values based on the current number, and the overall maximum product will be the answer.',
+                    leetcodeLink: 'https://leetcode.com/problems/maximum-product-subarray/'
+                },
+                 {
+                    id: 'max-sum-rectangle-no-larger-than-k',
+                    title: 'Max Sum of Rectangle in 2D Matrix',
+                    shortDescription: 'Finds the max sum of a rectangular submatrix.',
+                    fullStatement: 'Given a 2D $m \\times n$ matrix `matrix`, and an integer $k$, return the maximum sum of a rectangle in the matrix such that its sum is no larger than $k$. It is guaranteed that there will be a rectangle with a sum no larger than $k$.',
+                    example: `Input: matrix = [[1,0,1],[0,-2,3]], k = 2\nOutput: 2\nExplanation: The rectangle [[0, 1], [-2, 3]] has a sum of 2. It is the maximum sum possible no larger than k.`,
+                    solutionExplanation: 'This problem extends Kadane\'s to two dimensions. The general approach involves iterating through all possible pairs of columns (or rows). For each pair, you collapse the rows between these columns into a 1D array by summing the elements column-wise. Then, you apply a modified Kadane\'s-like approach to this 1D array to find the maximum sum subarray (or a subarray whose sum is no larger than $k$). The overall maximum sum found across all column pairs is the result.',
+                    leetcodeLink: 'https://leetcode.com/problems/max-sum-of-rectangle-no-larger-than-k/'
+                },
+                {
+                    id: 'largest-sum-at-least-k',
+                    title: 'Largest Sum Subarray (At Least K Elements)',
+                    shortDescription: 'Finds max sum of a contiguous subarray with minimum length K.',
+                    fullStatement: 'Given an integer array `nums` and an integer `k`, find the maximum sum of a contiguous subarray that contains at least $k$ elements.',
+                    example: `Input: nums = [-2, -3, 4, -1, -2, 1, 5, -3], k = 3\nOutput: 7\nExplanation: The subarray [4, -1, -2, 1, 5] has a sum of 7 and contains 5 elements (>= 3).`,
+                    solutionExplanation: 'This problem can be solved by combining Kadane\'s idea with a sliding window or prefix sums. You calculate prefix sums and then iterate, finding the maximum $(prefix\_sum[j] - min\_prefix\_sum\_before\_j\_minus\_k\_elements)$ to ensure the subarray has at least $k$ elements. The $min\_prefix\_sum$ needs to be tracked within a window of appropriate size.',
+                    leetcodeLink: 'https://leetcode.com/problems/maximum-average-subarray-ii/' /* Link to a similar problem exploring sliding window/k-length concepts */
+                }
+            ];
+
+            const problemsGrid = document.getElementById('problem-cards-grid');
+            const modal = document.getElementById('problem-modal');
+            const closeButton = document.querySelector('.close-button');
+            const modalTitle = document.getElementById('modal-title');
+            const modalStatement = document.getElementById('modal-statement');
+            const modalExample = document.getElementById('modal-example');
+            const modalSolution = document.getElementById('modal-solution');
+            const modalLeetcodeLink = document.getElementById('modal-leetcode-link');
+
+            problems.forEach(problem => {
+                const card = document.createElement('div');
+                card.className = 'card problem-card';
+                card.setAttribute('data-problem-id', problem.id);
+                card.innerHTML = `
+                    <div>
+                        <h3 class="text-xl font-bold mb-2 text-gray-800">${problem.title}</h3>
+                        <p class="text-gray-600 mb-4">${problem.shortDescription}</p>
+                    </div>
+                    <a href="${problem.leetcodeLink}" target="_blank" class="leetcode-link text-sm self-start">View Problem</a>
+                `;
+                problemsGrid.appendChild(card);
+            });
+
+            problemsGrid.addEventListener('click', function(event) {
+                const card = event.target.closest('.problem-card');
+                if (card) {
+                    const problemId = card.getAttribute('data-problem-id');
+                    const problem = problems.find(p => p.id === problemId);
+                    if (problem) {
+                        modalTitle.textContent = problem.title;
+                        modalStatement.textContent = problem.fullStatement;
+                        modalExample.textContent = problem.example;
+                        modalSolution.textContent = problem.solutionExplanation;
+                        modalLeetcodeLink.href = problem.leetcodeLink;
+                        modal.style.display = 'flex';
+                        // Re-render MathJax in the modal content
+                        MathJax.Hub.Queue(["Typeset",MathJax.Hub,"modal-content"]);
+                    }
+                }
+            });
+
+            closeButton.addEventListener('click', function() {
+                modal.style.display = 'none';
+            });
+
+            modal.addEventListener('click', function(event) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
